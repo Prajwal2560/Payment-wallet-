@@ -15,8 +15,7 @@ A secure payment wallet application built with Deno, React, and SQLite.
 - Modern web browser
 
 ## Installation
-1. Clone the repository
-2. Run with Deno
+1. Run with Deno
 
 ## Running the Application
 ```bash
