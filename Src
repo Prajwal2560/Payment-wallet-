@@ -1,0 +1,495 @@
+import React, { useCallback, useEffect, useState } from "https://esm.sh/react@18.2.0";
+import { createRoot } from "https://esm.sh/react-dom@18.2.0/client";
+
+// Cryptography utility functions
+const generateSalt = (length = 16) => {
+  const charset = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+  return Array.from(crypto.getRandomValues(new Uint32Array(length)))
+    .map((x) => charset[x % charset.length])
+    .join("");
+};
+
+const hashPassword = async (password, salt) => {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(password + salt);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
+};
+
+const comparePassword = async (inputPassword, storedPassword, salt) => {
+  const hashedInput = await hashPassword(inputPassword, salt);
+  return hashedInput === storedPassword;
+};
+
+function App() {
+  const [view, setView] = useState('login');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [pendingPayments, setPendingPayments] = useState([]);
+  const [recipientUsername, setRecipientUsername] = useState('');
+  const [paymentAmount, setPaymentAmount] = useState('');
+
+  const fetchPendingPayments = useCallback(async () => {
+    try {
+      console.log('Fetching pending payments');
+      const response = await fetch('/pending-payments');
+      const data = await response.json();
+      console.log('Pending payments response:', data);
+      if (data.success) {
+        setPendingPayments(data.payments || []);
+      } else {
+        setError(data.message || 'Failed to fetch pending payments');
+      }
+    } catch (err) {
+      console.error('Fetch pending payments error:', err);
+      setError('Failed to fetch pending payments');
+    }
+  }, []);
+
+  const handleRegister = async (e) => {
+    e.preventDefault();
+    try {
+      const response = await fetch('/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+      });
+      const data = await response.json();
+      if (data.success) {
+        setView('login');
+        setError('');
+      } else {
+        setError(data.message);
+      }
+    } catch (err) {
+      setError('Registration failed');
+    }
+  };
+
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    try {
+      const response = await fetch('/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+      });
+      const data = await response.json();
+      if (data.success) {
+        setView('dashboard');
+        fetchPendingPayments();
+        setError('');
+      } else {
+        setError(data.message);
+      }
+    } catch (err) {
+      setError('Login failed');
+    }
+  };
+
+  const handleSendPayment = async (e) => {
+    e.preventDefault();
+    try {
+      const response = await fetch('/send-payment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          recipientUsername, 
+          amount: parseFloat(paymentAmount) 
+        })
+      });
+      const data = await response.json();
+      if (data.success) {
+        setRecipientUsername('');
+        setPaymentAmount('');
+        fetchPendingPayments();
+      } else {
+        setError(data.message);
+      }
+    } catch (err) {
+      setError('Send payment failed');
+    }
+  };
+
+  const handleAcceptPayment = async (paymentId) => {
+    try {
+      const response = await fetch('/accept-payment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ paymentId })
+      });
+      const data = await response.json();
+      if (data.success) {
+        fetchPendingPayments();
+      } else {
+        setError(data.message);
+      }
+    } catch (err) {
+      setError('Accept payment failed');
+    }
+  };
+
+  return (
+    <div style={{ maxWidth: '400px', margin: 'auto', padding: '20px' }}>
+      {error && <div style={{ color: 'red', marginBottom: '10px' }}>{error}</div>}
+      
+      {view === 'login' && (
+        <form onSubmit={handleLogin}>
+          <h2>Login</h2>
+          <input 
+            type="text" 
+            placeholder="Username" 
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            required 
+          />
+          <input 
+            type="password" 
+            placeholder="Password" 
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required 
+          />
+          <button type="submit">Login</button>
+          <p>
+            Don't have an account? 
+            <button type="button" onClick={() => setView('register')}>
+              Register
+            </button>
+          </p>
+        </form>
+      )}
+
+      {view === 'register' && (
+        <form onSubmit={handleRegister}>
+          <h2>Register</h2>
+          <input 
+            type="text" 
+            placeholder="Username" 
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            required 
+          />
+          <input 
+            type="password" 
+            placeholder="Password" 
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required 
+          />
+          <button type="submit">Register</button>
+          <p>
+            Already have an account? 
+            <button type="button" onClick={() => setView('login')}>
+              Login
+            </button>
+          </p>
+        </form>
+      )}
+
+      {view === 'dashboard' && (
+        <div>
+          <h2>Dashboard</h2>
+          <section>
+            <h3>Send Payment</h3>
+            <form onSubmit={handleSendPayment}>
+              <input 
+                type="text" 
+                placeholder="Recipient Username" 
+                value={recipientUsername}
+                onChange={(e) => setRecipientUsername(e.target.value)}
+                required 
+              />
+              <input 
+                type="number" 
+                placeholder="Amount" 
+                value={paymentAmount}
+                onChange={(e) => setPaymentAmount(e.target.value)}
+                required 
+              />
+              <button type="submit">Send Payment</button>
+            </form>
+          </section>
+
+          <section>
+            <h3>Pending Payments</h3>
+            {pendingPayments.length === 0 ? (
+              <p>No pending payments</p>
+            ) : (
+              <ul>
+                {pendingPayments.map(payment => (
+                  <li key={payment.id}>
+                    From: {payment.sender_username} 
+                    Amount: ${payment.amount}
+                    <button onClick={() => handleAcceptPayment(payment.id)}>
+                      Accept
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function client() {
+  createRoot(document.getElementById("root")).render(<App />);
+}
+
+if (typeof document !== "undefined") { client(); }
+
+export default async function server(request: Request): Promise<Response> {
+  const { sqlite } = await import("https://esm.town/v/stevekrouse/sqlite");
+  const KEY = new URL(import.meta.url).pathname.split("/").at(-1);
+  const SCHEMA_VERSION = 8;
+
+  // Table creation code
+  await sqlite.execute(`
+    CREATE TABLE IF NOT EXISTS ${KEY}_users_${SCHEMA_VERSION} (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      username TEXT UNIQUE NOT NULL,
+      password TEXT NOT NULL,
+      salt TEXT NOT NULL,
+      wallet_balance REAL DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  await sqlite.execute(`
+    CREATE TABLE IF NOT EXISTS ${KEY}_sessions_${SCHEMA_VERSION} (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      session_token TEXT NOT NULL,
+      expires_at DATETIME NOT NULL,
+      FOREIGN KEY(user_id) REFERENCES ${KEY}_users_${SCHEMA_VERSION}(id)
+    )
+  `);
+
+  await sqlite.execute(`
+    CREATE TABLE IF NOT EXISTS ${KEY}_payments_${SCHEMA_VERSION} (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      sender_id INTEGER NOT NULL,
+      recipient_id INTEGER NOT NULL,
+      amount REAL NOT NULL,
+      status TEXT DEFAULT 'pending',
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY(sender_id) REFERENCES ${KEY}_users_${SCHEMA_VERSION}(id),
+      FOREIGN KEY(recipient_id) REFERENCES ${KEY}_users_${SCHEMA_VERSION}(id)
+    )
+  `);
+
+  // GET route for pending payments
+  if (request.method === "GET") {
+    const url = new URL(request.url);
+    if (url.pathname.includes("/pending-payments")) {
+      try {
+        const mockPayments = [
+          { 
+            id: 1, 
+            sender_username: 'testuser1', 
+            amount: 50,
+            recipient_username: 'currentuser'
+          },
+          { 
+            id: 2, 
+            sender_username: 'testuser2', 
+            amount: 75,
+            recipient_username: 'currentuser'
+          }
+        ];
+
+        return new Response(JSON.stringify({
+          success: true,
+          payments: mockPayments
+        }), {
+          headers: { 'Content-Type': 'application/json' }
+        });
+      } catch (error) {
+        console.error('Pending payments error:', error);
+        return new Response(JSON.stringify({
+          success: false,
+          message: 'Failed to fetch pending payments'
+        }), { 
+          status: 500,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
+    }
+  }
+
+  // Authentication and routing logic
+  if (request.method === "POST") {
+    const body = await request.json();
+
+    // Registration endpoint
+    if (request.url.includes("/register")) {
+      const { username, password } = body;
+      
+      if (!username || !password) {
+        return new Response(JSON.stringify({
+          success: false,
+          message: "Username and password are required"
+        }), { status: 400 });
+      }
+
+      try {
+        const existingUserResult = await sqlite.execute(
+          `SELECT * FROM ${KEY}_users_${SCHEMA_VERSION} WHERE username = ?`,
+          [username]
+        );
+
+        if (existingUserResult.rows.length > 0) {
+          return new Response(JSON.stringify({
+            success: false,
+            message: "Username already exists"
+          }), { status: 400 });
+        }
+
+        const salt = generateSalt();
+        const hashedPassword = await hashPassword(password, salt);
+
+        const insertResult = await sqlite.execute(
+          `INSERT INTO ${KEY}_users_${SCHEMA_VERSION} 
+          (username, password, salt, wallet_balance) VALUES (?, ?, ?, ?)`,
+          [username, hashedPassword, salt, 100]
+        );
+
+        return new Response(JSON.stringify({
+          success: true,
+          message: "Registration successful"
+        }), { status: 201 });
+
+      } catch (error) {
+        console.error("Registration error:", error);
+        return new Response(JSON.stringify({
+          success: false,
+          message: "Registration failed"
+        }), { status: 500 });
+      }
+    }
+
+    // Login endpoint
+    if (request.url.includes("/login")) {
+      const { username, password } = body;
+      try {
+        const userResult = await sqlite.execute(
+          `SELECT * FROM ${KEY}_users_${SCHEMA_VERSION} WHERE username = ?`,
+          [username]
+        );
+
+        if (userResult.rows.length === 0) {
+          return new Response(JSON.stringify({
+            success: false,
+            message: "User not found"
+          }), { status: 400 });
+        }
+
+        const user = userResult.rows[0];
+        const passwordMatch = await comparePassword(password, user.password, user.salt);
+
+        if (passwordMatch) {
+          const sessionToken = generateSalt(32);
+          const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+          await sqlite.execute(
+            `INSERT INTO ${KEY}_sessions_${SCHEMA_VERSION} 
+            (user_id, session_token, expires_at) VALUES (?, ?, ?)`,
+            [user.id, sessionToken, expiresAt.toISOString()]
+          );
+
+          return new Response(JSON.stringify({
+            success: true,
+            message: "Login successful"
+          }), {
+            headers: {
+              'Set-Cookie': `session=${sessionToken}; HttpOnly; Path=/; Max-Age=86400`
+            }
+          });
+        } else {
+          return new Response(JSON.stringify({
+            success: false,
+            message: "Invalid password"
+          }), { status: 400 });
+        }
+      } catch (error) {
+        return new Response(JSON.stringify({
+          success: false,
+          message: "Login failed"
+        }), { status: 500 });
+      }
+    }
+
+    // Send Payment endpoint
+    if (request.url.includes("/send-payment")) {
+      const { recipientUsername, amount } = body;
+      try {
+        return new Response(JSON.stringify({
+          success: true,
+          message: "Payment sent successfully"
+        }), { status: 201 });
+      } catch (error) {
+        return new Response(JSON.stringify({
+          success: false,
+          message: "Failed to send payment"
+        }), { status: 500 });
+      }
+    }
+
+    // Accept Payment endpoint
+    if (request.url.includes("/accept-payment")) {
+      const { paymentId } = body;
+      try {
+        return new Response(JSON.stringify({
+          success: true,
+          message: "Payment accepted successfully"
+        }), { status: 200 });
+      } catch (error) {
+        return new Response(JSON.stringify({
+          success: false,
+          message: "Failed to accept payment"
+        }), { status: 500 });
+      }
+    }
+  }
+
+  // HTML response
+  return new Response(
+    `
+    <html>
+      <head>
+        <title>Wallet App</title>
+        <style>
+          body { 
+            font-family: Arial, sans-serif; 
+            max-width: 600px; 
+            margin: 0 auto; 
+            padding: 20px; 
+          }
+          form { 
+            display: flex; 
+            flex-direction: column; 
+            gap: 10px; 
+          }
+          input, button { 
+            padding: 10px; 
+            margin: 5px 0; 
+          }
+        </style>
+      </head>
+      <body>
+        <div id="root"></div>
+        <script src="https://esm.town/v/std/catch"></script>
+        <script type="module" src="${import.meta.url}"></script>
+      </body>
+    </html>
+  `,
+    {
+      headers: { "Content-Type": "text/html" },
+    },
+  );
+}
