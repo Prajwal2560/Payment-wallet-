@@ -1,0 +1,40 @@
+From: <Saved by Blink>
+Snapshot-Content-Location: https://prajwal4444444-paymentwalletsimulation.web.val.run/
+Subject: Wallet App
+Date: Thu, 17 Apr 2025 16:31:57 +0530
+MIME-Version: 1.0
+Content-Type: multipart/related;
+	type="text/html";
+	boundary="----MultipartBoundary--qXik5Txl3eD1OBi7y00YwFM3951xCABX0sisQPNbuC----"
+
+
+------MultipartBoundary--qXik5Txl3eD1OBi7y00YwFM3951xCABX0sisQPNbuC----
+Content-Type: text/html
+Content-ID: <frame-77CAFE48F65F4CC39E96FE3489E711C8@mhtml.blink>
+Content-Transfer-Encoding: binary
+Content-Location: https://prajwal4444444-paymentwalletsimulation.web.val.run/
+
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"><link rel="stylesheet" type="text/css" href="cid:css-da3208d7-049c-4e75-9221-0fedbed3819a@mhtml.blink" />
+        <title>Wallet App</title>
+        
+      </head>
+      <body>
+        <div id="root"><div style="max-width: 400px; margin: auto; padding: 20px;"><form><h2>Login</h2><input type="text" placeholder="Username" required="" value=""><input type="password" placeholder="Password" required="" value=""><button type="submit">Login</button><p>Don't have an account?<button type="button">Register</button></p></form></div></div>
+        
+        
+      
+    
+  </body></html>
+------MultipartBoundary--qXik5Txl3eD1OBi7y00YwFM3951xCABX0sisQPNbuC----
+Content-Type: text/css
+Content-Transfer-Encoding: binary
+Content-Location: cid:css-da3208d7-049c-4e75-9221-0fedbed3819a@mhtml.blink
+
+@charset "utf-8";
+
+body { font-family: Arial, sans-serif; max-width: 600px; margin: 0px auto; padding: 20px; }
+
+form { display: flex; flex-direction: column; gap: 10px; }
+
+input, button { padding: 10px; margin: 5px 0px; }
+------MultipartBoundary--qXik5Txl3eD1OBi7y00YwFM3951xCABX0sisQPNbuC------
